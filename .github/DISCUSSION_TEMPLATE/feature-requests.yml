@@ -1,0 +1,77 @@
+# Based on Vue's RFC template format.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # Thank you for sharing your idea about a new feature. 🌟
+
+        Be sure to search existing discussions first.
+
+        A few tips to help us understand your idea:
+        1. Describe what you're trying to achieve, not necessarily how the extension should change to get there.
+        2. Be specific. Real-world examples and use cases from your own projects go a long way.
+        3. If you've found a workaround, share it. It helps us understand where gaps exist.
+
+  - type: dropdown
+    id: extension
+    attributes:
+      label: Extension
+      description: Which extension is this about? Pick "Other" for ideas about a new first-party extension.
+      options:
+        - Live Preview
+        - Other / new extension idea
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: CairnCMS Version
+      description: Include the version you are using, if relevant.
+      placeholder: v1.x.x
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the problem in your project or workflow. Focus on what is difficult today.
+      placeholder: |
+        I am trying to...
+        The current limitation is...
+    validations:
+      required: true
+
+  - type: textarea
+    id: attempted_solutions
+    attributes:
+      label: What have you tried already?
+      description: If you tried existing CairnCMS features, extensions, or workarounds, describe them here.
+      placeholder: |
+        I tried...
+        This did not work because...
+    validations:
+      required: false
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to see?
+      description: If you have an idea for how the extension could address the problem, describe it here. Rough ideas are fine.
+      placeholder: |
+        It would help if the extension could...
+        A possible approach would be...
+    validations:
+      required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: Related issues, discussions, or examples
+      description: Link any related GitHub issues, discussions, docs, or external examples.
+      placeholder: |
+        - #123
+        - https://example.com
+    validations:
+      required: false

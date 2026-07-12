@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*@*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Parse tag
+        id: parse
+        run: |
+          PACKAGE="${GITHUB_REF_NAME%@*}"
+          VERSION="${GITHUB_REF_NAME##*@}"
+
+          if [[ "$VERSION" == *-* ]]; then
+            echo "Prerelease version, skipping release creation"
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ ! "$PACKAGE" =~ ^[a-z0-9][a-z0-9-]*$ ]] || [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag must be <package>@<semver>, got $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+          if [ ! -d "packages/$PACKAGE" ]; then
+            echo "::error::No package folder packages/$PACKAGE for tag $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+          echo "package=$PACKAGE" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Extract release notes
+        if: steps.parse.outputs.proceed == 'true'
+        env:
+          PACKAGE: ${{ steps.parse.outputs.package }}
+          VERSION: ${{ steps.parse.outputs.version }}
+        run: |
+          awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (in_section) exit
+              if ($0 ~ "^## \\[" ver "\\]") { in_section=1; next }
+            }
+            in_section { print }
+          ' "packages/$PACKAGE/CHANGELOG.md" > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "::error::No CHANGELOG.md section found for $PACKAGE version $VERSION"
+            exit 1
+          fi
+
+      - name: Create release
+        if: steps.parse.outputs.proceed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --notes-file release-notes.md

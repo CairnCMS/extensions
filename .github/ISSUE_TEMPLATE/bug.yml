@@ -1,0 +1,40 @@
+name: Bug Report
+description: Report a defect in a first-party extension
+body:
+  - type: dropdown
+    id: extension
+    attributes:
+      label: Extension
+      description: Which extension is this about?
+      options:
+        - Live Preview
+        - Other / not extension-specific
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: cairncms-version
+    attributes:
+      label: CairnCMS version
+      placeholder: 1.2.0
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
