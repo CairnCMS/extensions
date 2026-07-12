@@ -1,0 +1,41 @@
+{
+	"name": "@cairncms/extension-live-preview",
+	"version": "0.1.0",
+	"type": "module",
+	"description": "Preview items on your site in a split pane beside the item editor",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/CairnCMS/extensions.git",
+		"directory": "packages/live-preview"
+	},
+	"license": "GPL-3.0-only",
+	"author": "The CairnCMS Authors",
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE",
+		"CHANGELOG.md"
+	],
+	"scripts": {
+		"build": "cairncms-extension build",
+		"test": "node --test test/*.test.mjs"
+	},
+	"cairncms:extension": {
+		"type": "item-view",
+		"path": "dist/index.js",
+		"source": "src/index.js",
+		"host": "^1.3.0",
+		"settings": {
+			"preview_url": {
+				"type": "string",
+				"scope": "collection",
+				"appReadable": true,
+				"presentation": { "interface": "system-display-template" }
+			}
+		}
+	},
+	"devDependencies": {
+		"@cairncms/extensions-sdk": "^1.3.0",
+		"vue": "3.5.38"
+	}
+}
