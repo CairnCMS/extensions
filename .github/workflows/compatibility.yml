@@ -1,0 +1,111 @@
+name: Compatibility
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      image:
+        description: CairnCMS image tag to test against
+        default: latest
+        required: false
+
+concurrency:
+  group: compatibility-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_TAG: ${{ github.event.inputs.image || 'latest' }}
+
+jobs:
+  compatibility:
+    name: Extensions load on CairnCMS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm build
+
+      - name: Validate the image tag
+        run: |
+          if ! printf '%s' "$IMAGE_TAG" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*$'; then
+            echo "Invalid image tag: $IMAGE_TAG" >&2
+            exit 1
+          fi
+
+      - name: Assemble the extensions folder
+        run: |
+          for dir in packages/*/; do
+            name="$(basename "$dir")"
+            out="$RUNNER_TEMP/tarballs/$name"
+            mkdir -p "$out" "$RUNNER_TEMP/extensions/cairncms-extension-$name"
+            (cd "$dir" && pnpm pack --pack-destination "$out")
+            tar -xzf "$out"/*.tgz -C "$RUNNER_TEMP/extensions/cairncms-extension-$name" --strip-components=1
+          done
+          ls -R "$RUNNER_TEMP/extensions"
+
+      - name: Boot CairnCMS
+        run: |
+          mkdir -p "$RUNNER_TEMP/database"
+          chmod 777 "$RUNNER_TEMP/database"
+          ADMIN_PASSWORD="$(openssl rand -hex 16)"
+          echo "::add-mask::$ADMIN_PASSWORD"
+          echo "ADMIN_PASSWORD=$ADMIN_PASSWORD" >> "$GITHUB_ENV"
+          docker pull "cairncms/cairncms:$IMAGE_TAG"
+          docker run -d --name cairncms-compat -p 8055:8055 \
+            -v "$RUNNER_TEMP/extensions:/cairncms/extensions" \
+            -v "$RUNNER_TEMP/database:/cairncms/database" \
+            -e KEY="$(openssl rand -hex 16)" \
+            -e SECRET="$(openssl rand -hex 32)" \
+            -e ADMIN_EMAIL="admin@example.com" \
+            -e ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+            "cairncms/cairncms:$IMAGE_TAG"
+
+      - name: Wait for health
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl -sf http://localhost:8055/server/health >/dev/null 2>&1; then
+              echo "healthy after $attempt attempt(s)"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "CairnCMS never reported healthy" >&2
+          exit 1
+
+      - name: Assert extensions load
+        env:
+          CAIRNCMS_URL: http://localhost:8055
+          ADMIN_EMAIL: admin@example.com
+        run: node scripts/compatibility/assert-loaded.mjs
+
+      - name: Collect container logs
+        if: failure()
+        run: docker logs cairncms-compat > "$RUNNER_TEMP/cairncms-compat.log" 2>&1 || true
+
+      - name: Upload container logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cairncms-compat-logs
+          path: ${{ runner.temp }}/cairncms-compat.log
