@@ -68,6 +68,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/database"
           chmod 777 "$RUNNER_TEMP/database"
+          chmod 777 "$RUNNER_TEMP/extensions"
           ADMIN_PASSWORD="$(openssl rand -hex 16)"
           echo "::add-mask::$ADMIN_PASSWORD"
           echo "ADMIN_PASSWORD=$ADMIN_PASSWORD" >> "$GITHUB_ENV"
