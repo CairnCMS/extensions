@@ -18,6 +18,7 @@ body:
       label: Extension
       description: Which extension is this about? Pick "Other" for ideas about a new first-party extension.
       options:
+        - Address Completion
         - Live Preview
         - Other / new extension idea
     validations:
