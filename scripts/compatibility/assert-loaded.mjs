@@ -6,6 +6,18 @@ import { join } from 'node:path';
 const APP_TYPES = new Set(['interface', 'display', 'layout', 'module', 'panel', 'item-view']);
 const SERVER_TYPES = new Set(['hook', 'endpoint']);
 
+// The generated app entrypoint pushes a bundle's app entries into per-type
+// collections. Asserting those push lines is how a bundle's app side is proven
+// discovered, since the diagnostics entries list carries server entries only.
+const BUNDLE_APP_COLLECTIONS = {
+	interface: 'interfaces',
+	display: 'displays',
+	layout: 'layouts',
+	module: 'modules',
+	panel: 'panels',
+	'item-view': 'itemViews',
+};
+
 const BASE_URL = process.env.CAIRNCMS_URL;
 const EMAIL = process.env.ADMIN_EMAIL;
 const PASSWORD = process.env.ADMIN_PASSWORD;
@@ -29,6 +41,7 @@ function readPackages() {
 		packages.push({
 			name: manifest.name,
 			type: extension.type,
+			entries: Array.isArray(extension.entries) ? extension.entries : [],
 			hasSettings: extension.settings !== undefined,
 		});
 	}
@@ -44,6 +57,16 @@ async function api(path, init) {
 	}
 
 	return (await response.json()).data;
+}
+
+async function apiText(path, init) {
+	const response = await fetch(`${BASE_URL}${path}`, init);
+
+	if (!response.ok) {
+		throw new Error(`${path} responded ${response.status}`);
+	}
+
+	return await response.text();
 }
 
 function describe(entry) {
@@ -76,6 +99,16 @@ try {
 	ownersUnavailable = `owners endpoint unavailable on this instance (${error.message})`;
 }
 
+let appSources = null;
+
+async function getAppSources() {
+	if (appSources === null) {
+		appSources = await apiText('/extensions/sources/index.js', { headers });
+	}
+
+	return appSources;
+}
+
 const failures = [];
 
 function expectedStatus(type) {
@@ -84,7 +117,89 @@ function expectedStatus(type) {
 	return null;
 }
 
+function settingsCheck(pkg) {
+	if (!pkg.hasSettings) return { ok: true, note: '' };
+
+	// A package that declares settings cannot pass when the owners surface is
+	// unavailable, or a broken settings endpoint would report a green run.
+	if (owners === null) {
+		return { ok: false, note: `, settings unverifiable: ${ownersUnavailable}` };
+	}
+
+	const owner = owners.find((candidate) => candidate.subject === pkg.name);
+	const ok = owner?.status === 'available';
+
+	return { ok, note: ok ? ', settings available' : `, settings ${owner?.status ?? 'absent'}` };
+}
+
+async function assertBundle(pkg) {
+	const row = extensions.find((candidate) => candidate.name === pkg.name);
+	const serverEntries = pkg.entries.filter((entry) => SERVER_TYPES.has(entry.type));
+	const appEntries = pkg.entries.filter((entry) => APP_TYPES.has(entry.type));
+	const unsupported = pkg.entries.filter((entry) => !SERVER_TYPES.has(entry.type) && !APP_TYPES.has(entry.type));
+	const problems = [];
+
+	for (const entry of unsupported) {
+		problems.push(`entry "${entry.name}" has type "${entry.type}"; extend scripts/compatibility/assert-loaded.mjs`);
+	}
+
+	const expected = serverEntries.length > 0 ? 'loaded' : 'discovered';
+
+	if (row?.status !== expected) {
+		problems.push(`status ${describe(row)}, expected "${expected}"`);
+	}
+
+	for (const entry of serverEntries) {
+		const entryRow = row?.entries?.find((candidate) => candidate.name === entry.name);
+
+		if (entryRow?.status !== 'loaded') {
+			problems.push(`server entry "${entry.name}" is ${describe(entryRow)}, expected "loaded"`);
+		}
+	}
+
+	if (appEntries.length > 0) {
+		let sources = '';
+
+		try {
+			sources = await getAppSources();
+		} catch (error) {
+			problems.push(`app sources unavailable (${error.message})`);
+		}
+
+		if (sources !== '') {
+			if (!sources.includes(`loadExtension("${pkg.name}"`)) {
+				problems.push('app side is not referenced by the generated app entrypoint');
+			}
+
+			for (const entry of appEntries) {
+				const collection = BUNDLE_APP_COLLECTIONS[entry.type];
+
+				if (!sources.includes(`pushEntries("${pkg.name}", ${collection}`)) {
+					problems.push(`app entry "${entry.name}" (${entry.type}) is not registered into "${collection}"`);
+				}
+			}
+		}
+	}
+
+	const settings = settingsCheck(pkg);
+	if (!settings.ok) problems.push('settings owner not available');
+
+	const summary = `bundle ${describe(row)}, ${serverEntries.length} server, ${appEntries.length} app${settings.note}`;
+
+	if (problems.length === 0) {
+		console.log(`ok   ${pkg.name} (${summary})`);
+	} else {
+		console.log(`FAIL ${pkg.name} (${summary})`);
+		for (const problem of problems) failures.push(`${pkg.name}: ${problem}`);
+	}
+}
+
 for (const pkg of packages) {
+	if (pkg.type === 'bundle') {
+		await assertBundle(pkg);
+		continue;
+	}
+
 	const expected = expectedStatus(pkg.type);
 
 	if (expected === null) {
@@ -95,27 +210,14 @@ for (const pkg of packages) {
 
 	const entry = extensions.find((candidate) => candidate.name === pkg.name);
 	const statusOk = entry?.status === expected;
+	const settings = settingsCheck(pkg);
 
-	let settingsOk = true;
-	let settingsNote = '';
-
-	if (pkg.hasSettings) {
-		const owner = owners?.find((candidate) => candidate.subject === pkg.name);
-		settingsOk = owner?.status === 'available';
-
-		if (owners === null) {
-			settingsNote = `, settings unverifiable: ${ownersUnavailable}`;
-		} else {
-			settingsNote = settingsOk ? ', settings available' : `, settings ${owner?.status ?? 'absent'}`;
-		}
-	}
-
-	if (statusOk && settingsOk) {
-		console.log(`ok   ${pkg.name} (${pkg.type} ${entry.status}${settingsNote})`);
+	if (statusOk && settings.ok) {
+		console.log(`ok   ${pkg.name} (${pkg.type} ${entry.status}${settings.note})`);
 	} else {
-		console.log(`FAIL ${pkg.name} (${pkg.type} ${describe(entry)}${settingsNote})`);
+		console.log(`FAIL ${pkg.name} (${pkg.type} ${describe(entry)}${settings.note})`);
 		if (!statusOk) failures.push(`${pkg.name}: status ${describe(entry)}, expected "${expected}"`);
-		if (!settingsOk) failures.push(`${pkg.name}: settings owner not available`);
+		if (!settings.ok) failures.push(`${pkg.name}: settings owner not available`);
 	}
 }
 

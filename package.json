@@ -10,6 +10,7 @@
 	"scripts": {
 		"build": "pnpm --recursive build",
 		"test": "pnpm --recursive test",
+		"typecheck": "pnpm --recursive --if-present typecheck",
 		"lint": "eslint ."
 	},
 	"devDependencies": {

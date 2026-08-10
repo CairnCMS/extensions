@@ -1,0 +1,118 @@
+{
+	"name": "@cairncms/extension-address-completion",
+	"version": "0.1.0",
+	"type": "module",
+	"description": "Google-backed address autocomplete that saves one compact address record",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/CairnCMS/extensions.git",
+		"directory": "packages/address-completion"
+	},
+	"license": "GPL-3.0-only",
+	"author": "The CairnCMS Authors",
+	"files": [
+		"dist",
+		"src",
+		"README.md",
+		"LICENSE",
+		"CHANGELOG.md",
+		"THIRD_PARTY_NOTICES.md"
+	],
+	"scripts": {
+		"build": "cairncms-extension build",
+		"typecheck": "vue-tsc --noEmit",
+		"test": "vitest run"
+	},
+	"cairncms:extension": {
+		"type": "bundle",
+		"runtime": "confined-server",
+		"path": {
+			"app": "dist/app.js",
+			"api": "dist/api.js"
+		},
+		"entries": [
+			{
+				"type": "interface",
+				"name": "address-completion",
+				"source": "src/address-completion/index.ts"
+			},
+			{
+				"type": "display",
+				"name": "address-completion-display",
+				"source": "src/address-completion-display/index.ts"
+			},
+			{
+				"type": "endpoint",
+				"name": "address-completion-api",
+				"source": "src/address-completion-api/index.ts",
+				"capabilities": {
+					"endpoint": {
+						"access": "app"
+					},
+					"request": {
+						"urls": [
+							"https://places.googleapis.com"
+						],
+						"methods": [
+							"POST",
+							"GET"
+						]
+					}
+				}
+			}
+		],
+		"settings": {
+			"google_maps_api_key": {
+				"type": "string",
+				"secret": {
+					"source": "inline"
+				},
+				"presentation": {
+					"order": 1,
+					"width": "full"
+				}
+			},
+			"google_maps_browser_key": {
+				"type": "string",
+				"appReadable": true,
+				"presentation": {
+					"order": 2,
+					"width": "full"
+				}
+			},
+			"google_maps_map_id": {
+				"type": "string",
+				"appReadable": true,
+				"presentation": {
+					"order": 3,
+					"width": "half"
+				}
+			}
+		},
+		"host": "^1.3.0"
+	},
+	"dependencies": {
+		"@cairncms/extensions-server-api": "1.3.1"
+	},
+	"devDependencies": {
+		"@cairncms/extensions-sdk": "^1.3.1",
+		"@types/google.maps": "^3.65.5",
+		"@vitejs/plugin-vue": "^6.0.8",
+		"@vue/test-utils": "^2.4.6",
+		"happy-dom": "^20.10.0",
+		"micromustache": "^8.0.3",
+		"sass": "^1.102.0",
+		"typescript": "5.6.3",
+		"vitest": "^3.2.0",
+		"vue": "3.5.38",
+		"vue-tsc": "^3.3.9"
+	},
+	"keywords": [
+		"cairncms",
+		"cairncms-extension",
+		"address",
+		"autocomplete",
+		"google",
+		"places"
+	]
+}

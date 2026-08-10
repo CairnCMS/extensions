@@ -7,6 +7,7 @@ body:
       label: Extension
       description: Which extension is this about?
       options:
+        - Address Completion
         - Live Preview
         - Other / not extension-specific
     validations:
