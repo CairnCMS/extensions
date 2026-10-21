@@ -5,6 +5,7 @@ import { join } from 'node:path';
 
 const APP_TYPES = new Set(['interface', 'display', 'layout', 'module', 'panel', 'item-view']);
 const SERVER_TYPES = new Set(['hook', 'endpoint']);
+const HYBRID_TYPES = new Set(['operation']);
 
 // The generated app entrypoint pushes a bundle's app entries into per-type
 // collections. Asserting those push lines is how a bundle's app side is proven
@@ -194,9 +195,58 @@ async function assertBundle(pkg) {
 	}
 }
 
+// An operation has one diagnostics row, loaded once its server side registers.
+// Its app side can only be shown referenced: the entrypoint carries these lines
+// even when the browser fails to import the app module.
+async function assertOperation(pkg) {
+	const row = extensions.find((candidate) => candidate.name === pkg.name);
+	const problems = [];
+
+	if (row?.status !== 'loaded') {
+		problems.push(`status ${describe(row)}, expected "loaded"`);
+	}
+
+	let sources = null;
+
+	try {
+		sources = await getAppSources();
+	} catch (error) {
+		problems.push(`app sources unavailable (${error.message})`);
+	}
+
+	const loads = sources?.includes(`loadExtension("${pkg.name}"`) ?? false;
+	const pushes = sources?.includes(`pushConfig("${pkg.name}", operations`) ?? false;
+
+	if (sources !== null && !loads) {
+		problems.push('app side is not referenced by the generated app entrypoint');
+	}
+
+	if (sources !== null && !pushes) {
+		problems.push('app side is not pushed into "operations" by the generated app entrypoint');
+	}
+
+	const settings = settingsCheck(pkg);
+	if (!settings.ok) problems.push('settings owner not available');
+
+	const app = loads && pushes ? 'referenced' : 'not referenced';
+	const summary = `operation ${describe(row)}, app ${app}${settings.note}`;
+
+	if (problems.length === 0) {
+		console.log(`ok   ${pkg.name} (${summary})`);
+	} else {
+		console.log(`FAIL ${pkg.name} (${summary})`);
+		for (const problem of problems) failures.push(`${pkg.name}: ${problem}`);
+	}
+}
+
 for (const pkg of packages) {
 	if (pkg.type === 'bundle') {
 		await assertBundle(pkg);
+		continue;
+	}
+
+	if (HYBRID_TYPES.has(pkg.type)) {
+		await assertOperation(pkg);
 		continue;
 	}
 

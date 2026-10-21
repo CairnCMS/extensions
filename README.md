@@ -12,6 +12,7 @@ it into a custom Docker image. Each package's README walks through the options f
 | Extension | Description | Types |
 | --- | --- | --- |
 | [Address Completion](packages/address-completion) | Google-backed address autocomplete that saves one compact address record | Interface, Display, Endpoint |
+| [Formatter](packages/formatter) | Normalize and format field values in Flows | Operation |
 | [Live Preview](packages/live-preview) | Preview items on your site in a split pane beside the item editor | Item View |
 
 Each package's README covers its installation, configuration, and
