@@ -19,6 +19,7 @@ body:
       description: Which extension is this about? Pick "Other" for ideas about a new first-party extension.
       options:
         - Address Completion
+        - Formatter
         - Live Preview
         - Other / new extension idea
     validations:

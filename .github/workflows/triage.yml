@@ -20,6 +20,7 @@ jobs:
             // Issue bodies are untrusted input, so labels come only from this map.
             const allowlist = {
               'Address Completion': 'ext:address-completion',
+              'Formatter': 'ext:formatter',
               'Live Preview': 'ext:live-preview',
             };
 

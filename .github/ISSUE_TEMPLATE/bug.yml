@@ -8,6 +8,7 @@ body:
       description: Which extension is this about?
       options:
         - Address Completion
+        - Formatter
         - Live Preview
         - Other / not extension-specific
     validations:
