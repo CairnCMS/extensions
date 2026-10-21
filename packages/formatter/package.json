@@ -1,0 +1,56 @@
+{
+	"name": "@cairncms/extension-formatter",
+	"version": "0.1.0",
+	"type": "module",
+	"description": "Normalize and format field values in Flows",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/CairnCMS/extensions.git",
+		"directory": "packages/formatter"
+	},
+	"license": "GPL-3.0-only",
+	"author": "The CairnCMS Authors",
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE",
+		"CHANGELOG.md",
+		"THIRD_PARTY_NOTICES.md"
+	],
+	"scripts": {
+		"build": "cairncms-extension build",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"cairncms:extension": {
+		"type": "operation",
+		"path": {
+			"app": "dist/app.js",
+			"api": "dist/api.js"
+		},
+		"source": {
+			"app": "src/app/index.ts",
+			"api": "src/api/index.ts"
+		},
+		"host": "^1.6.1"
+	},
+	"devDependencies": {
+		"@cairncms/extensions-sdk": "^1.4.0",
+		"@sindresorhus/slugify": "2.2.1",
+		"@types/big.js": "^6.2.2",
+		"@types/node": "^22.19.17",
+		"big.js": "^6.2.2",
+		"joi": "17.13.8",
+		"libphonenumber-js": "^1.11.17",
+		"typescript": "5.6.3",
+		"vitest": "^3.2.0"
+	},
+	"keywords": [
+		"cairncms",
+		"cairncms-extension",
+		"flows",
+		"format",
+		"phone",
+		"intl"
+	]
+}
